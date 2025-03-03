@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Trade Journal Calendar</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    /* Global Styles */
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #f9f9f9, #eaeaea);
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    h3 {
+      margin-top: 0;
+    }
+    button, select, input {
+      outline: none;
+    }
+    /* Header Styles */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .header select, .header button {
+      padding: 8px 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fefefe;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .header button:hover, .header select:hover {
+      background: #f5f5f5;
+    }
+    /* Calendar Grid */
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .day {
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+      min-height: 70px;
+      border-radius: 6px;
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    .day:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .day.green {
+      background-color: #d4edda;
+      border-color: #c3e6cb;
+    }
+    .day.red {
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+    }
+    .trade-amount {
+      font-size: 12px;
+      margin-top: 5px;
+      font-weight: 500;
+    }
+    /* Summary Styles */
+    .summary {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      width: 300px;
+      position: relative;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    #photoModal .modal-content {
+      width: 80%;
+      max-width: 600px;
+    }
+    .modal-content h3 {
+      font-weight: 500;
+    }
+    .close {
+      position: absolute;
+      right: 12px;
+      top: 12px;
+      font-size: 24px;
+      cursor: pointer;
+      color: #888;
+    }
+    .modal-content input, .modal-content select, .modal-content button {
+      width: 100%;
+      margin-bottom: 12px;
+      padding: 8px;
+      font-size: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .modal-content button {
+      background: #007bff;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .modal-content button:hover {
+      background: #0069d9;
+    }
+    /* Photo Modal */
+    #photoViewer {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 6px;
+    }
+    /* Custom Context Menu */
+    #contextMenu {
+      display: none;
+      position: absolute;
+      z-index: 2000;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 5px 0;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    #contextMenu ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #contextMenu ul li {
+      padding: 8px 15px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    #contextMenu ul li:hover {
+      background: #f5f5f5;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <button id="prevMonth">&laquo; Prev</button>
+    <div>
+      <select id="monthSelect"></select>
+      <select id="yearSelect"></select>
+    </div>
+    <button id="nextMonth">Next &raquo;</button>
+  </div>
+
+  <div class="calendar" id="calendar"></div>
+  <div class="summary" id="summary"></div>
+
+  <!-- Custom context menu -->
+  <div id="contextMenu">
+    <ul>
+      <li id="openImageOption">Open Image File</li>
+    </ul>
+  </div>
+
+  <!-- Modal for trade entry -->
+  <div class="modal" id="tradeModal">
+    <div class="modal-content">
+      <span class="close" id="closeModal">&times;</span>
+      <h3 id="modalDate">Trade Details</h3>
+      <form id="tradeForm">
+        <label for="position">Position:</label>
+        <select id="position" required>
+          <option value="Long">Long</option>
+          <option value="Short">Short</option>
+        </select>
+        <label for="amount">Amount (Profit/Loss):</label>
+        <input type="number" id="amount" required placeholder="e.g., 200 or -150">
+        <label for="fileInput">Chart Screenshot (PNG):</label>
+        <input type="file" id="fileInput" accept="image/*">
+        <button type="submit">Save Trade</button>
+      </form>
+      <button id="openImageBtn">Open Image File</button>
+    </div>
+  </div>
+
+  <!-- Modal for photo preview -->
+  <div class="modal" id="photoModal">
+    <div class="modal-content">
+      <span class="close" id="closePhotoModal">&times;</span>
+      <img id="photoViewer" src="" alt="Image Preview">
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // DOM element references
+      const calendarEl = document.getElementById('calendar');
+      const summaryEl = document.getElementById('summary');
+      const monthSelect = document.getElementById('monthSelect');
+      const yearSelect = document.getElementById('yearSelect');
+      const prevMonthBtn = document.getElementById('prevMonth');
+      const nextMonthBtn = document.getElementById('nextMonth');
+      const tradeModal = document.getElementById('tradeModal');
+      const closeModal = document.getElementById('closeModal');
+      const tradeForm = document.getElementById('tradeForm');
+      const modalDateEl = document.getElementById('modalDate');
+      const openImageBtn = document.getElementById('openImageBtn');
+      const positionInput = document.getElementById('position');
+      const amountInput = document.getElementById('amount');
+      const fileInput = document.getElementById('fileInput');
+      const contextMenu = document.getElementById('contextMenu');
+      const openImageOption = document.getElementById('openImageOption');
+      const photoModal = document.getElementById('photoModal');
+      const closePhotoModal = document.getElementById('closePhotoModal');
+      const photoViewer = document.getElementById('photoViewer');
+
+      // Current date variables
+      let currentMonth = new Date().getMonth();
+      let currentYear = new Date().getFullYear();
+      let selectedDate = null;
+      let contextMenuDate = null; // for right-clicked day
+
+      // Object to store trade entries by date ("YYYY-MM-DD")
+      let trades = {};
+
+      const monthNames = ["January", "February", "March", "April", "May", "June",
+                          "July", "August", "September", "October", "November", "December"];
+
+      // Populate month and year selectors
+      function populateSelectors() {
+        monthSelect.innerHTML = "";
+        yearSelect.innerHTML = "";
+        monthNames.forEach((month, index) => {
+          const option = document.createElement('option');
+          option.value = index;
+          option.textContent = month;
+          if (index === currentMonth) option.selected = true;
+          monthSelect.appendChild(option);
+        });
+        for (let y = currentYear - 5; y <= currentYear + 5; y++) {
+          const option = document.createElement('option');
+          option.value = y;
+          option.textContent = y;
+          if (y === currentYear) option.selected = true;
+          yearSelect.appendChild(option);
+        }
+      }
+
+      // Generate calendar grid for given month and year
+      function generateCalendar(month, year) {
+        calendarEl.innerHTML = "";
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        // Blank cells for days before month start
+        for (let i = 0; i < firstDay; i++) {
+          const blankCell = document.createElement('div');
+          blankCell.classList.add('day');
+          calendarEl.appendChild(blankCell);
+        }
+
+        // Create cells for each day
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dayCell = document.createElement('div');
+          dayCell.classList.add('day');
+          const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+
+          // Display the day number
+          const dayNumber = document.createElement('div');
+          dayNumber.textContent = d;
+          dayCell.appendChild(dayNumber);
+
+          // If a trade exists, display its amount and color the cell
+          if (trades[dateStr]) {
+            const trade = trades[dateStr];
+            const tradeAmount = Number(trade.amount);
+            if (tradeAmount > 0) dayCell.classList.add('green');
+            else if (tradeAmount < 0) dayCell.classList.add('red');
+            const amountDisplay = document.createElement('div');
+            amountDisplay.classList.add('trade-amount');
+            amountDisplay.textContent = '$' + tradeAmount;
+            dayCell.appendChild(amountDisplay);
+          }
+
+          // Left-click opens the trade modal
+          dayCell.addEventListener('click', () => openModal(dateStr));
+
+          // Right-click: if an image is attached, show context menu to open it in the photo modal
+          dayCell.addEventListener('contextmenu', (e) => {
+            if (trades[dateStr] && trades[dateStr].fileType && trades[dateStr].fileType.startsWith("image/")) {
+              e.preventDefault();
+              contextMenuDate = dateStr;
+              contextMenu.style.top = e.clientY + "px";
+              contextMenu.style.left = e.clientX + "px";
+              contextMenu.style.display = "block";
+            }
+          });
+
+          calendarEl.appendChild(dayCell);
+        }
+        updateMonthlySummary(month, year);
+      }
+
+      // Update monthly summary: total wins, losses, overall total
+      function updateMonthlySummary(month, year) {
+        let totalWin = 0, totalLoss = 0;
+        for (const date in trades) {
+          if (date.startsWith(year + '-' + String(month + 1).padStart(2, '0'))) {
+            const amt = Number(trades[date].amount);
+            if (amt > 0) totalWin += amt;
+            else totalLoss += amt;
+          }
+        }
+        const overallTotal = totalWin + totalLoss;
+        summaryEl.innerHTML = `
+          <h3>Monthly Summary for ${monthNames[month]} ${year}</h3>
+          <p>Total Wins: <span style="color:green;">$${totalWin}</span></p>
+          <p>Total Losses: <span style="color:red;">$${totalLoss}</span></p>
+          <p>Overall Total: <span style="color:${overallTotal >= 0 ? 'green' : 'red'};">$${overallTotal}</span></p>
+        `;
+      }
+
+      // Open the trade modal for a given date
+      function openModal(dateStr) {
+        selectedDate = dateStr;
+        modalDateEl.textContent = "Trade Details for " + dateStr;
+        if (trades[dateStr]) {
+          positionInput.value = trades[dateStr].position;
+          amountInput.value = trades[dateStr].amount;
+        } else {
+          tradeForm.reset();
+        }
+        fileInput.value = "";
+        tradeModal.style.display = "flex";
+      }
+
+      // Open photo modal with the image for a given date
+      function openPhotoModal(dateStr) {
+        if (trades[dateStr] && trades[dateStr].screenshot) {
+          photoViewer.src = trades[dateStr].screenshot;
+          photoModal.style.display = "flex";
+        } else {
+          alert("No image file available for this day.");
+        }
+      }
+
+      // Close trade modal
+      closeModal.addEventListener('click', () => {
+        tradeModal.style.display = "none";
+      });
+
+      // Close photo modal
+      closePhotoModal.addEventListener('click', () => {
+        photoModal.style.display = "none";
+      });
+
+      // Save trade details from the trade modal
+      tradeForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        trades[selectedDate] = {
+          position: positionInput.value,
+          amount: amountInput.value,
+          screenshot: null,
+          fileType: null
+        };
+        if (fileInput.files && fileInput.files[0]) {
+          const file = fileInput.files[0];
+          const reader = new FileReader();
+          reader.onload = function(event) {
+            trades[selectedDate].screenshot = event.target.result;
+            trades[selectedDate].fileType = file.type;
+            generateCalendar(currentMonth, currentYear);
+            tradeModal.style.display = "none";
+          };
+          reader.readAsDataURL(file);
+        } else {
+          generateCalendar(currentMonth, currentYear);
+          tradeModal.style.display = "none";
+        }
+      });
+
+      // Button inside trade modal: open image file in photo modal
+      openImageBtn.addEventListener('click', () => {
+        openPhotoModal(selectedDate);
+      });
+
+      // Context menu option: open image file for right-clicked day
+      openImageOption.addEventListener('click', () => {
+        if (contextMenuDate) {
+          openPhotoModal(contextMenuDate);
+        }
+        contextMenu.style.display = "none";
+      });
+
+      // Hide context menu when clicking anywhere else
+      document.addEventListener('click', () => {
+        if (contextMenu.style.display === "block") {
+          contextMenu.style.display = "none";
+        }
+      });
+
+      // Update calendar when month/year selectors change
+      monthSelect.addEventListener('change', (e) => {
+        currentMonth = Number(e.target.value);
+        generateCalendar(currentMonth, currentYear);
+      });
+      yearSelect.addEventListener('change', (e) => {
+        currentYear = Number(e.target.value);
+        generateCalendar(currentMonth, currentYear);
+      });
+      prevMonthBtn.addEventListener('click', () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+          currentMonth = 11;
+          currentYear--;
+        }
+        populateSelectors();
+        generateCalendar(currentMonth, currentYear);
+      });
+      nextMonthBtn.addEventListener('click', () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
+        }
+        populateSelectors();
+        generateCalendar(currentMonth, currentYear);
+      });
+
+      // Initial setup
+      populateSelectors();
+      generateCalendar(currentMonth, currentYear);
+    });
+  </script>
+</body>
+</html>
